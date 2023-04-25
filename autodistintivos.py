@@ -6,6 +6,7 @@ __version__ = "0.1.dev0"
 
 
 import csv
+from dataclasses import dataclass
 import logging
 from io import BytesIO
 from pathlib import Path
@@ -18,7 +19,16 @@ from reportlab.pdfgen import canvas
 logger = structlog.get_logger()
 
 
-def generate(template, logo, destination):
+@dataclass
+class TemplateSpec:
+    filename: str
+    x_ref: int
+    y_ref: int
+    width: int
+    height: int
+
+
+def generate(template_spec: TemplateSpec, logo: Path, destination: Path):
     # Adapted from https://stackoverflow.com/a/10766606/554319
     # Using ReportLab to insert image into PDF
     logo_bytes = BytesIO()
@@ -27,10 +37,10 @@ def generate(template, logo, destination):
     # Draw image on Canvas and save PDF in buffer
     logo_canvas.drawImage(
         logo,
-        x=250,
-        y=500,
-        width=80,
-        height=80,
+        x=template_spec.x_ref,
+        y=template_spec.y_ref,
+        width=template_spec.width,
+        height=template_spec.height,
         mask="auto",
         preserveAspectRatio=True,
         anchor="c",
@@ -38,7 +48,7 @@ def generate(template, logo, destination):
     logo_canvas.save()
 
     # Use PyPDF to merge the image-PDF into the template
-    page = PdfReader(open(template, "rb")).pages[0]
+    page = PdfReader(open(template_spec.filename, "rb")).pages[0]
     overlay = PdfReader(BytesIO(logo_bytes.getvalue())).pages[0]
     page.merge_page(overlay)
 
@@ -49,7 +59,9 @@ def generate(template, logo, destination):
         output.write(fh)
 
 
-def generate_from_data(name, logo_url, template, logos_dir, destination_dir):
+def generate_from_data(
+    name, logo_url, template_spec: TemplateSpec, logos_dir, destination_dir
+):
     logo_filename = Path(logos_dir) / f"{logo_url.rsplit('/', maxsplit=1)[-1]}"
     destination = Path(destination_dir) / f"{name}.pdf"
 
@@ -58,15 +70,19 @@ def generate_from_data(name, logo_url, template, logos_dir, destination_dir):
     elif not destination.parent.is_dir():
         raise FileNotFoundError("Destination directory not found")
 
-    generate(template, logo_filename, destination)
+    generate(template_spec, logo_filename, destination)
 
 
 @click.command()
 @click.option("--data-file", required=True)
 @click.option("--template", required=True)
+@click.option("--template-xy", required=True, type=(int, int))
+@click.option("--template-wh", required=True, type=(int, int))
 @click.option("--logos-dir", default="logos")
 @click.option("--destination-dir", default="distintivos")
-def cli(data_file, template, logos_dir, destination_dir):
+def cli(data_file, template, template_xy, template_wh, logos_dir, destination_dir):
+    template_spec = TemplateSpec(template, *template_xy, *template_wh)
+
     with open(data_file) as csv_file:
         reader = csv.reader(csv_file, delimiter=",")
         next(reader)  # CSV header
@@ -80,7 +96,7 @@ def cli(data_file, template, logos_dir, destination_dir):
             else:
                 try:
                     generate_from_data(
-                        name, logo_url, template, logos_dir, destination_dir
+                        name, logo_url, template_spec, logos_dir, destination_dir
                     )
                 except Exception as e:
                     logger.error("No se pudo generar el distintivo", error=e, name=name)
