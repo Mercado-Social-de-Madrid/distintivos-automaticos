@@ -25,7 +25,16 @@ def generate(template, logo, destination):
     logo_canvas = canvas.Canvas(logo_bytes)
 
     # Draw image on Canvas and save PDF in buffer
-    logo_canvas.drawImage(logo, x=250, y=500, width=80, height=80)
+    logo_canvas.drawImage(
+        logo,
+        x=250,
+        y=500,
+        width=80,
+        height=80,
+        mask="auto",
+        preserveAspectRatio=True,
+        anchor="c",
+    )
     logo_canvas.save()
 
     # Use PyPDF to merge the image-PDF into the template
