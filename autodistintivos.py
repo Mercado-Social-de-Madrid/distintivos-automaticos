@@ -66,9 +66,9 @@ def generate_from_data(
     destination = Path(destination_dir) / f"{name}.pdf"
 
     if not logo_filename.is_file():
-        raise FileNotFoundError("Logo not found")
+        raise FileNotFoundError("No se encontró el logo")
     elif not destination.parent.is_dir():
-        raise FileNotFoundError("Destination directory not found")
+        raise FileNotFoundError("No se encontró el directorio de destino")
 
     generate(template_spec, logo_filename, destination)
 
