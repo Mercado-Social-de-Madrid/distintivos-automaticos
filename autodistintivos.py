@@ -74,12 +74,12 @@ def generate_from_data(
 
 
 @click.command()
-@click.option("--data-file", required=True)
+@click.option("--data-file", type=click.Path(), required=True)
 @click.option("--template", required=True)
 @click.option("--template-xy", required=True, type=(int, int))
 @click.option("--template-wh", required=True, type=(int, int))
-@click.option("--logos-dir", default="logos")
-@click.option("--destination-dir", default="distintivos")
+@click.option("--logos-dir", type=click.Path(), default="logos")
+@click.option("--destination-dir", type=click.Path(), default="distintivos")
 def cli(data_file, template, template_xy, template_wh, logos_dir, destination_dir):
     template_spec = TemplateSpec(template, *template_xy, *template_wh)
 
