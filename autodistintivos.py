@@ -8,6 +8,7 @@ __version__ = "0.1.dev0"
 import csv
 import logging
 from io import BytesIO
+from pathlib import Path
 
 import click
 import structlog
@@ -40,16 +41,15 @@ def generate(template, logo, destination):
 
 
 def generate_from_data(name, logo_url, template, logos_dir, destination_dir):
-    logo_filename = f"{logos_dir}/{logo_url.rsplit('/', maxsplit=1)[-1]}"
-    destination = f"{destination_dir}/{name}.pdf"
-    try:
-        generate(template, logo_filename, destination)
-    except Exception:
-        logger.error(
-            "No se pudo generar el distintivo", name=name, logo_filename=logo_filename
-        )
-    else:
-        logger.info("Distintivo generado con éxito", name=name)
+    logo_filename = Path(logos_dir) / f"{logo_url.rsplit('/', maxsplit=1)[-1]}"
+    destination = Path(destination_dir) / f"{name}.pdf"
+
+    if not logo_filename.is_file():
+        raise FileNotFoundError("Logo not found")
+    elif not destination.parent.is_dir():
+        raise FileNotFoundError("Destination directory not found")
+
+    generate(template, logo_filename, destination)
 
 
 @click.command()
@@ -62,7 +62,21 @@ def cli(data_file, template, logos_dir, destination_dir):
         reader = csv.reader(csv_file, delimiter=",")
         next(reader)  # CSV header
         for name, logo_url, *rest in reader:
-            generate_from_data(name, logo_url, template, logos_dir, destination_dir)
+            if not name or not logo_url:
+                logger.warning(
+                    "Datos inválidos, no se generó el distintivo",
+                    name=name,
+                    logo_url=logo_url,
+                )
+            else:
+                try:
+                    generate_from_data(
+                        name, logo_url, template, logos_dir, destination_dir
+                    )
+                except Exception as e:
+                    logger.error("No se pudo generar el distintivo", error=e, name=name)
+                else:
+                    logger.info("Distintivo generado con éxito", name=name)
 
 
 if __name__ == "__main__":
