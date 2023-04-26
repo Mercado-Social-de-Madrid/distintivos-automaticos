@@ -6,8 +6,9 @@ __version__ = "0.1.dev0"
 
 
 import csv
-from dataclasses import dataclass
 import logging
+import urllib.parse
+from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 
@@ -26,6 +27,11 @@ class TemplateSpec:
     y_ref: int
     width: int
     height: int
+
+
+def logo_filename_from_url(logo_url: str) -> str:
+    logo_filename_encoded = logo_url.rsplit("/", maxsplit=1)[-1]
+    return urllib.parse.unquote(logo_filename_encoded)
 
 
 def generate(template_spec: TemplateSpec, logo: Path, destination: Path):
@@ -62,7 +68,7 @@ def generate(template_spec: TemplateSpec, logo: Path, destination: Path):
 def generate_from_data(
     name, logo_url, template_spec: TemplateSpec, logos_dir, destination_dir
 ):
-    logo_filename = Path(logos_dir) / f"{logo_url.rsplit('/', maxsplit=1)[-1]}"
+    logo_filename = Path(logos_dir) / f"{logo_filename_from_url(logo_url)}"
     destination = Path(destination_dir) / f"{name}.pdf"
 
     if not logo_filename.is_file():
