@@ -5,6 +5,7 @@ Genera distintivos automáticamente.
 __version__ = "0.1.dev0"
 
 
+import csv
 import logging
 import urllib.parse
 from dataclasses import dataclass
@@ -30,6 +31,7 @@ class TemplateSpec:
     logo_width: int
     logo_height: int
 
+    generate_qr: bool = False
     qr_x_ref: int | None = None
     qr_y_ref: int | None = None
     qr_width: int | None = None
@@ -57,7 +59,7 @@ def logo_filename_from_url(logo_url: str) -> str:
 def generate(
     template_spec: TemplateSpec,
     logo_path: Path,
-    destination: Path,
+    destination_path: Path,
     qr_path: Path | None = None,
 ):
     # Adapted from https://stackoverflow.com/a/10766606/554319
@@ -106,63 +108,53 @@ def generate(
     # Save the result
     output = PdfWriter()
     output.add_page(page)
-    with open(destination, "wb") as fh:
+    with open(destination_path, "wb") as fh:
         output.write(fh)
 
 
 def generate_from_data(
-    name, logo_url, template_spec: TemplateSpec, logos_dir, destination_dir
+    name: str,
+    logo_url: str,
+    template_spec: TemplateSpec,
+    info_url: str | None = None,
+    logos_dir: Path = Path("logos"),
+    destination_dir: Path = Path("distintivos"),
+    qrs_dir: Path = Path("qrs"),
 ):
-    logo_filename = Path(logos_dir) / f"{logo_filename_from_url(logo_url)}"
-    destination = Path(destination_dir) / f"{name}.pdf"
+    logo_path = logos_dir / f"{logo_filename_from_url(logo_url)}"
+    destination_path = destination_dir / f"{name}.pdf"
 
-    if not logo_filename.is_file():
+    if not logo_path.is_file():
         raise FileNotFoundError("No se encontró el logo")
-    elif not destination.parent.is_dir():
+    elif not destination_path.parent.is_dir():
         raise FileNotFoundError("No se encontró el directorio de destino")
 
-    generate(template_spec, logo_filename, destination)
+    if template_spec.generate_qr:
+        if not qrs_dir.is_dir():
+            raise FileNotFoundError("No se encontró el directorio de códigos QR")
 
+        qr_path = qrs_dir / f"{logo_path.stem}.png"
+        if not qr_path.is_file():
+            qr_image = qr_from_text(info_url)
+            qr_image.save(qr_path)
+    else:
+        qr_path = None
 
-def generate_from_logos(
-    logos_directory: Path,
-    template_spec: TemplateSpec,
-    destination_dir: Path,
-    qrs_dir: Path | None = None,
-):
-    for logo_path in logos_directory.rglob("*.png"):
-        destination = destination_dir / f"{logo_path.stem}.pdf"
-
-        # FIXME: Refactor
-        if qrs_dir:
-            qr_path = qrs_dir / f"{logo_path.stem}.png"
-            if not qr_path.is_file():
-                # FIXME: Load URL dynamically
-                qr_image = qr_from_text("https://madrid.mercadosocial.net")
-                qr_image.save(qr_path)
-        else:
-            qr_path = None
-
-        generate(
-            template_spec,
-            logo_path,
-            destination,
-            qr_path,
-        )
-
-        logger.info("Generado distintivo", logo_filename=logo_path.stem)
+    generate(template_spec, logo_path, destination_path, qr_path)
 
 
 @click.command()
+@click.option("--data-file", type=click.Path(), required=True)
 @click.option("--template", required=True)
 @click.option("--template-logo-xy", required=True, type=(int, int))
 @click.option("--template-logo-wh", required=True, type=(int, int))
 @click.option("--template-qr-xy", type=(int, int))
 @click.option("--template-qr-wh", type=(int, int))
 @click.option("--logos-dir", type=click.Path(), default="logos")
-@click.option("--qrs-dir", type=click.Path())
+@click.option("--qrs-dir", type=click.Path(), default="qrs")
 @click.option("--destination-dir", type=click.Path(), default="distintivos")
 def cli(
+    data_file,
     template,
     template_logo_xy,
     template_logo_wh,
@@ -177,18 +169,38 @@ def cli(
             template,
             *template_logo_xy,
             *template_logo_wh,
+            True,
             *template_qr_xy,
             *template_qr_wh,
         )
     else:
         template_spec = TemplateSpec(template, *template_logo_xy, *template_logo_wh)
 
-    generate_from_logos(
-        Path(logos_dir),
-        template_spec,
-        Path(destination_dir),
-        Path(qrs_dir) if qrs_dir else None,
-    )
+    with open(data_file) as csv_file:
+        reader = csv.reader(csv_file, delimiter=";")
+        next(reader)  # CSV header
+        for name, logo_url, info_url in reader:
+            if not name or not logo_url:
+                logger.warning(
+                    "Datos inválidos, no se generó el distintivo",
+                    name=name,
+                    logo_url=logo_url,
+                )
+            else:
+                try:
+                    generate_from_data(
+                        name,
+                        logo_url,
+                        template_spec,
+                        info_url,
+                        Path(logos_dir),
+                        Path(destination_dir),
+                        Path(qrs_dir),
+                    )
+                except Exception as e:
+                    logger.error("No se pudo generar el distintivo", error=e, name=name)
+                else:
+                    logger.info("Distintivo generado con éxito", name=name)
 
 
 if __name__ == "__main__":
