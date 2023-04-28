@@ -140,6 +140,13 @@ def generate_from_data(
     else:
         qr_path = None
 
+    logger.debug(
+        "Generando distintivo",
+        template_spec=template_spec,
+        logo_path=logo_path,
+        destination_path=destination_path,
+        qr_path=qr_path,
+    )
     generate(template_spec, logo_path, destination_path, qr_path)
 
 
@@ -153,6 +160,7 @@ def generate_from_data(
 @click.option("--logos-dir", type=click.Path(), default="logos")
 @click.option("--qrs-dir", type=click.Path(), default="qrs")
 @click.option("--destination-dir", type=click.Path(), default="distintivos")
+@click.option("--verbose", "-v", is_flag=True)
 def cli(
     data_file,
     template,
@@ -163,7 +171,14 @@ def cli(
     logos_dir,
     qrs_dir,
     destination_dir,
+    verbose,
 ):
+    structlog.configure(
+        wrapper_class=structlog.make_filtering_bound_logger(
+            logging.DEBUG if verbose else logging.WARNING
+        )
+    )
+
     if template_logo_xy is not None and template_qr_wh is not None:
         template_spec = TemplateSpec(
             template,
@@ -204,8 +219,4 @@ def cli(
 
 
 if __name__ == "__main__":
-    structlog.configure(
-        wrapper_class=structlog.make_filtering_bound_logger(logging.INFO)
-    )
-
     cli()
