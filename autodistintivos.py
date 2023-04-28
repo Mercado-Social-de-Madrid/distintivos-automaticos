@@ -8,6 +8,7 @@ __version__ = "0.1.dev0"
 import csv
 import logging
 import urllib.parse
+from copy import copy
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
@@ -180,7 +181,7 @@ def cli(
     )
 
     if template_logo_xy is not None and template_qr_wh is not None:
-        template_spec = TemplateSpec(
+        base_template_spec = TemplateSpec(
             template,
             *template_logo_xy,
             *template_logo_wh,
@@ -189,12 +190,14 @@ def cli(
             *template_qr_wh,
         )
     else:
-        template_spec = TemplateSpec(template, *template_logo_xy, *template_logo_wh)
+        base_template_spec = TemplateSpec(
+            template, *template_logo_xy, *template_logo_wh
+        )
 
     with open(data_file) as csv_file:
         reader = csv.reader(csv_file, delimiter=";")
         next(reader)  # CSV header
-        for name, logo_url, info_url in reader:
+        for name, logo_url, info_url, *rest in reader:
             if not name or not logo_url:
                 logger.warning(
                     "Datos inválidos, no se generó el distintivo",
@@ -202,6 +205,18 @@ def cli(
                     logo_url=logo_url,
                 )
             else:
+                if all(rest):
+                    # Override template spec
+                    template_spec = copy(base_template_spec)
+                    (
+                        template_spec.logo_x_ref,
+                        template_spec.logo_y_ref,
+                        template_spec.logo_width,
+                        template_spec.logo_height,
+                    ) = [int(v) for v in rest]
+                else:
+                    template_spec = base_template_spec
+
                 try:
                     generate_from_data(
                         name,
