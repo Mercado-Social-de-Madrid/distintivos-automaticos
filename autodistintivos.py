@@ -207,7 +207,15 @@ def cli(
     with open(data_file) as csv_file:
         reader = csv.reader(csv_file, delimiter=";")
         next(reader)  # CSV header
-        for name, logo_url, info_url, *rest in reader:
+        for (
+            name,
+            logo_url,
+            info_url,
+            logo_dx_str,
+            logo_dy_str,
+            logo_fwidth_str,
+            logo_fheight_str,
+        ) in reader:
             if not name or not logo_url:
                 logger.warning(
                     "Datos inválidos, no se generó el distintivo",
@@ -215,15 +223,16 @@ def cli(
                     logo_url=logo_url,
                 )
             else:
-                if all(rest):
+                if all([logo_dx_str, logo_dy_str, logo_fwidth_str, logo_fheight_str]):
                     # Override template spec
                     template_spec = copy(base_template_spec)
-                    (
-                        template_spec.logo_x_ref,
-                        template_spec.logo_y_ref,
-                        template_spec.logo_width,
-                        template_spec.logo_height,
-                    ) = [int(v) for v in rest]
+
+                    template_spec.logo_x_ref += int(logo_dx_str)
+                    template_spec.logo_y_ref += int(logo_dy_str)
+                    template_spec.logo_width *= float(logo_fwidth_str.replace(",", "."))
+                    template_spec.logo_height *= float(
+                        logo_fheight_str.replace(",", ".")
+                    )
                 else:
                     template_spec = base_template_spec
 
