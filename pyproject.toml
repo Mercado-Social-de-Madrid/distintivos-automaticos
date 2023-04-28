@@ -12,6 +12,7 @@ dependencies = [
     "reportlab",
     "rich",
     "structlog",
+    "qrcode",
 ]
 dynamic = ["version", "description"]
 
