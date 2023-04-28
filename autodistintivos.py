@@ -23,10 +23,11 @@ logger = structlog.get_logger()
 @dataclass
 class TemplateSpec:
     filename: str
-    x_ref: int
-    y_ref: int
-    width: int
-    height: int
+
+    logo_x_ref: int
+    logo_y_ref: int
+    logo_width: int
+    logo_height: int
 
 
 def logo_filename_from_url(logo_url: str) -> str:
@@ -43,10 +44,10 @@ def generate(template_spec: TemplateSpec, logo: Path, destination: Path):
     # Draw image on Canvas and save PDF in buffer
     logo_canvas.drawImage(
         logo,
-        x=template_spec.x_ref,
-        y=template_spec.y_ref,
-        width=template_spec.width,
-        height=template_spec.height,
+        x=template_spec.logo_x_ref,
+        y=template_spec.logo_y_ref,
+        width=template_spec.logo_width,
+        height=template_spec.logo_height,
         mask="auto",
         preserveAspectRatio=True,
         anchor="c",
@@ -120,12 +121,12 @@ def generate_from_logos(
 
 @click.command()
 @click.option("--template", required=True)
-@click.option("--template-xy", required=True, type=(int, int))
-@click.option("--template-wh", required=True, type=(int, int))
+@click.option("--template-logo-xy", required=True, type=(int, int))
+@click.option("--template-logo-wh", required=True, type=(int, int))
 @click.option("--logos-dir", type=click.Path(), default="logos")
 @click.option("--destination-dir", type=click.Path(), default="distintivos")
-def cli(template, template_xy, template_wh, logos_dir, destination_dir):
-    template_spec = TemplateSpec(template, *template_xy, *template_wh)
+def cli(template, template_logo_xy, template_logo_wh, logos_dir, destination_dir):
+    template_spec = TemplateSpec(template, *template_logo_xy, *template_logo_wh)
     generate_from_logos(Path(logos_dir), template_spec, Path(destination_dir))
 
 
