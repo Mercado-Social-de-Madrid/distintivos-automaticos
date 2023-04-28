@@ -10,6 +10,10 @@ find "$PDF_DIR" -type f -name "*.pdf" -print0 | while IFS= read -r -d $'\0' pdf_
     # create the PNG file name by replacing the extension of the PDF file with ".png"
     png_file="${pdf_file%.pdf}.png"
 
-    # convert the PDF file to a PNG file using the convert command from ImageMagick
-    convert -density 300 -quality 100 -colorspace sRGB "$pdf_file" "$png_file"
+    if [[ ! -f "$png_file" ]]; then
+        # convert the PDF file to a PNG file using the convert command from ImageMagick
+        convert -density 300 -quality 100 -colorspace sRGB "$pdf_file" "$png_file"
+    else
+        echo "Distintivo existente ($png_file), no se sobreescribirá"
+    fi
 done

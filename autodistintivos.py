@@ -121,9 +121,17 @@ def generate_from_data(
     logos_dir: Path = Path("logos"),
     destination_dir: Path = Path("distintivos"),
     qrs_dir: Path = Path("qrs"),
+    overwrite: bool = False,
 ):
     logo_path = logos_dir / f"{logo_filename_from_url(logo_url)}"
     destination_path = destination_dir / f"{name}.pdf"
+
+    if destination_path.is_file() and not overwrite:
+        logger.warning(
+            "Distintivo existente, no se sobreescribirá",
+            destination_path=destination_path,
+        )
+        return
 
     if not logo_path.is_file():
         raise FileNotFoundError("No se encontró el logo")
@@ -161,6 +169,7 @@ def generate_from_data(
 @click.option("--logos-dir", type=click.Path(), default="logos")
 @click.option("--qrs-dir", type=click.Path(), default="qrs")
 @click.option("--destination-dir", type=click.Path(), default="distintivos")
+@click.option("--overwrite", is_flag=True)
 @click.option("--verbose", "-v", is_flag=True)
 def cli(
     data_file,
@@ -172,6 +181,7 @@ def cli(
     logos_dir,
     qrs_dir,
     destination_dir,
+    overwrite,
     verbose,
 ):
     structlog.configure(
@@ -226,6 +236,7 @@ def cli(
                         Path(logos_dir),
                         Path(destination_dir),
                         Path(qrs_dir),
+                        overwrite,
                     )
                 except Exception as e:
                     logger.error("No se pudo generar el distintivo", error=e, name=name)
