@@ -16,7 +16,6 @@ import qrcode
 import structlog
 from pypdf import PdfReader, PdfWriter
 from qrcode.image.pil import PilImage
-from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 
 logger = structlog.get_logger()
@@ -59,7 +58,7 @@ def generate(
     template_spec: TemplateSpec,
     logo_path: Path,
     destination: Path,
-    target_url: str | None = None,
+    qr_path: Path | None = None,
 ):
     # Adapted from https://stackoverflow.com/a/10766606/554319
     # Using ReportLab to insert image into PDF
@@ -85,20 +84,21 @@ def generate(
 
     page.merge_page(overlay)
 
-    if target_url:
+    if qr_path:
         qr_bytes = BytesIO()
         qr_canvas = canvas.Canvas(qr_bytes)
 
         qr_canvas.drawImage(
-            ImageReader(qr_from_text(target_url)),
-            x=template_spec.logo_x_ref - 50,  # FIXME: Actual parameter
-            y=template_spec.logo_y_ref - 50,  # FIXME: Actual parameter
-            width=template_spec.logo_width,
-            height=template_spec.logo_height,
+            qr_path,
+            x=template_spec.qr_x_ref,
+            y=template_spec.qr_y_ref,
+            width=template_spec.qr_width,
+            height=template_spec.qr_height,
             mask="auto",
             preserveAspectRatio=True,
             anchor="c",
         )
+        qr_canvas.save()
 
         qr = PdfReader(BytesIO(qr_bytes.getvalue())).pages[0]
         page.merge_page(qr)
@@ -125,17 +125,32 @@ def generate_from_data(
 
 
 def generate_from_logos(
-    logos_directory: Path, template_spec: TemplateSpec, destination_dir: Path
+    logos_directory: Path,
+    template_spec: TemplateSpec,
+    destination_dir: Path,
+    qrs_dir: Path | None = None,
 ):
     for logo_path in logos_directory.rglob("*.png"):
         destination = destination_dir / f"{logo_path.stem}.pdf"
+
+        # FIXME: Refactor
+        if qrs_dir:
+            qr_path = qrs_dir / f"{logo_path.stem}.png"
+            if not qr_path.is_file():
+                # FIXME: Load URL dynamically
+                qr_image = qr_from_text("https://madrid.mercadosocial.net")
+                qr_image.save(qr_path)
+        else:
+            qr_path = None
+
         generate(
             template_spec,
             logo_path,
             destination,
-            # FIXME: Load URL dynamically
-            target_url="https://madrid.mercadosocial.net",
+            qr_path,
         )
+
+        logger.info("Generado distintivo", logo_filename=logo_path.stem)
 
 
 @click.command()
@@ -145,6 +160,7 @@ def generate_from_logos(
 @click.option("--template-qr-xy", type=(int, int))
 @click.option("--template-qr-wh", type=(int, int))
 @click.option("--logos-dir", type=click.Path(), default="logos")
+@click.option("--qrs-dir", type=click.Path())
 @click.option("--destination-dir", type=click.Path(), default="distintivos")
 def cli(
     template,
@@ -153,6 +169,7 @@ def cli(
     template_qr_xy,
     template_qr_wh,
     logos_dir,
+    qrs_dir,
     destination_dir,
 ):
     if template_logo_xy is not None and template_qr_wh is not None:
@@ -166,7 +183,12 @@ def cli(
     else:
         template_spec = TemplateSpec(template, *template_logo_xy, *template_logo_wh)
 
-    generate_from_logos(Path(logos_dir), template_spec, Path(destination_dir))
+    generate_from_logos(
+        Path(logos_dir),
+        template_spec,
+        Path(destination_dir),
+        Path(qrs_dir) if qrs_dir else None,
+    )
 
 
 if __name__ == "__main__":
