@@ -5,7 +5,6 @@ Genera distintivos automáticamente.
 __version__ = "0.1.dev0"
 
 
-import csv
 import logging
 import urllib.parse
 from dataclasses import dataclass
@@ -78,37 +77,6 @@ def generate_from_data(
         raise FileNotFoundError("No se encontró el directorio de destino")
 
     generate(template_spec, logo_filename, destination)
-
-
-@click.command()
-@click.option("--data-file", type=click.Path(), required=True)
-@click.option("--template", required=True)
-@click.option("--template-xy", required=True, type=(int, int))
-@click.option("--template-wh", required=True, type=(int, int))
-@click.option("--logos-dir", type=click.Path(), default="logos")
-@click.option("--destination-dir", type=click.Path(), default="distintivos")
-def cli2(data_file, template, template_xy, template_wh, logos_dir, destination_dir):
-    template_spec = TemplateSpec(template, *template_xy, *template_wh)
-
-    with open(data_file) as csv_file:
-        reader = csv.reader(csv_file, delimiter=",")
-        next(reader)  # CSV header
-        for name, logo_url, *rest in reader:
-            if not name or not logo_url:
-                logger.warning(
-                    "Datos inválidos, no se generó el distintivo",
-                    name=name,
-                    logo_url=logo_url,
-                )
-            else:
-                try:
-                    generate_from_data(
-                        name, logo_url, template_spec, logos_dir, destination_dir
-                    )
-                except Exception as e:
-                    logger.error("No se pudo generar el distintivo", error=e, name=name)
-                else:
-                    logger.info("Distintivo generado con éxito", name=name)
 
 
 def generate_from_logos(
