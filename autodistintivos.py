@@ -86,7 +86,7 @@ def generate_from_data(
 @click.option("--template-wh", required=True, type=(int, int))
 @click.option("--logos-dir", type=click.Path(), default="logos")
 @click.option("--destination-dir", type=click.Path(), default="distintivos")
-def cli(data_file, template, template_xy, template_wh, logos_dir, destination_dir):
+def cli2(data_file, template, template_xy, template_wh, logos_dir, destination_dir):
     template_spec = TemplateSpec(template, *template_xy, *template_wh)
 
     with open(data_file) as csv_file:
@@ -108,6 +108,25 @@ def cli(data_file, template, template_xy, template_wh, logos_dir, destination_di
                     logger.error("No se pudo generar el distintivo", error=e, name=name)
                 else:
                     logger.info("Distintivo generado con éxito", name=name)
+
+
+def generate_from_logos(
+    logos_directory: Path, template_spec: TemplateSpec, destination_dir: Path
+):
+    for logo_path in logos_directory.rglob("*.png"):
+        destination = destination_dir / f"{logo_path.stem}.pdf"
+        generate(template_spec, logo_path, destination)
+
+
+@click.command()
+@click.option("--template", required=True)
+@click.option("--template-xy", required=True, type=(int, int))
+@click.option("--template-wh", required=True, type=(int, int))
+@click.option("--logos-dir", type=click.Path(), default="logos")
+@click.option("--destination-dir", type=click.Path(), default="distintivos")
+def cli(template, template_xy, template_wh, logos_dir, destination_dir):
+    template_spec = TemplateSpec(template, *template_xy, *template_wh)
+    generate_from_logos(Path(logos_dir), template_spec, Path(destination_dir))
 
 
 if __name__ == "__main__":
