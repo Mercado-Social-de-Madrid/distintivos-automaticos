@@ -57,7 +57,7 @@ def logo_filename_from_url(logo_url: str) -> str:
 
 def generate(
     template_spec: TemplateSpec,
-    logo: Path,
+    logo_path: Path,
     destination: Path,
     target_url: str | None = None,
 ):
@@ -68,7 +68,7 @@ def generate(
 
     # Draw image on Canvas and save PDF in buffer
     logo_canvas.drawImage(
-        logo,
+        logo_path,
         x=template_spec.logo_x_ref,
         y=template_spec.logo_y_ref,
         width=template_spec.logo_width,
@@ -80,8 +80,8 @@ def generate(
     logo_canvas.save()
 
     # Use PyPDF to merge the image-PDF into the template
-    page = PdfReader(open(template_spec.filename, "rb")).pages[0]
-    overlay = PdfReader(BytesIO(logo_bytes.getvalue())).pages[0]
+    page = PdfReader(template_spec.filename).pages[0]
+    overlay = PdfReader(logo_bytes).pages[0]
 
     page.merge_page(overlay)
 
